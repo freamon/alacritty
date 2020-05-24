@@ -25,7 +25,7 @@ dependencies = [
  "fnv 1.0.7 (registry+https://github.com/rust-lang/crates.io-index)",
  "font 0.1.0",
  "gl_generator 0.14.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "glutin 0.24.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "glutin 0.24.0 (git+https://github.com/freamon/glutin.git?branch=use-latest-winit)",
  "image 0.23.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.4.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "notify 4.0.15 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -313,20 +313,6 @@ dependencies = [
 
 [[package]]
 name = "cocoa"
-version = "0.19.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-dependencies = [
- "bitflags 1.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "block 0.1.6 (registry+https://github.com/rust-lang/crates.io-index)",
- "core-foundation 0.6.4 (registry+https://github.com/rust-lang/crates.io-index)",
- "core-graphics 0.17.3 (registry+https://github.com/rust-lang/crates.io-index)",
- "foreign-types 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "libc 0.2.70 (registry+https://github.com/rust-lang/crates.io-index)",
- "objc 0.2.7 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
-name = "cocoa"
 version = "0.20.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
@@ -359,15 +345,6 @@ dependencies = [
 
 [[package]]
 name = "core-foundation"
-version = "0.6.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-dependencies = [
- "core-foundation-sys 0.6.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "libc 0.2.70 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
-name = "core-foundation"
 version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
@@ -377,24 +354,8 @@ dependencies = [
 
 [[package]]
 name = "core-foundation-sys"
-version = "0.6.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-
-[[package]]
-name = "core-foundation-sys"
 version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-
-[[package]]
-name = "core-graphics"
-version = "0.17.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-dependencies = [
- "bitflags 1.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "core-foundation 0.6.4 (registry+https://github.com/rust-lang/crates.io-index)",
- "foreign-types 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "libc 0.2.70 (registry+https://github.com/rust-lang/crates.io-index)",
-]
 
 [[package]]
 name = "core-graphics"
@@ -733,18 +694,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 [[package]]
 name = "glutin"
 version = "0.24.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
+source = "git+https://github.com/freamon/glutin.git?branch=use-latest-winit#020f785d185f4d3f1e89b3c29d0536b92209a65c"
 dependencies = [
  "android_glue 0.2.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "cgl 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "cocoa 0.19.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "core-foundation 0.6.4 (registry+https://github.com/rust-lang/crates.io-index)",
- "core-graphics 0.17.3 (registry+https://github.com/rust-lang/crates.io-index)",
- "glutin_egl_sys 0.1.4 (registry+https://github.com/rust-lang/crates.io-index)",
- "glutin_emscripten_sys 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "glutin_gles2_sys 0.1.4 (registry+https://github.com/rust-lang/crates.io-index)",
- "glutin_glx_sys 0.1.6 (registry+https://github.com/rust-lang/crates.io-index)",
- "glutin_wgl_sys 0.1.4 (registry+https://github.com/rust-lang/crates.io-index)",
+ "cocoa 0.20.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "core-foundation 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "core-graphics 0.19.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "glutin_egl_sys 0.1.4 (git+https://github.com/freamon/glutin.git?branch=use-latest-winit)",
+ "glutin_emscripten_sys 0.1.1 (git+https://github.com/freamon/glutin.git?branch=use-latest-winit)",
+ "glutin_gles2_sys 0.1.4 (git+https://github.com/freamon/glutin.git?branch=use-latest-winit)",
+ "glutin_glx_sys 0.1.6 (git+https://github.com/freamon/glutin.git?branch=use-latest-winit)",
+ "glutin_wgl_sys 0.1.4 (git+https://github.com/freamon/glutin.git?branch=use-latest-winit)",
  "lazy_static 1.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "libloading 0.5.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.4.8 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -753,13 +714,13 @@ dependencies = [
  "parking_lot 0.10.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "wayland-client 0.23.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "winapi 0.3.8 (registry+https://github.com/rust-lang/crates.io-index)",
- "winit 0.22.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "winit 0.22.2 (git+https://github.com/rust-windowing/winit.git)",
 ]
 
 [[package]]
 name = "glutin_egl_sys"
 version = "0.1.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
+source = "git+https://github.com/freamon/glutin.git?branch=use-latest-winit#020f785d185f4d3f1e89b3c29d0536b92209a65c"
 dependencies = [
  "gl_generator 0.13.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "winapi 0.3.8 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -768,12 +729,12 @@ dependencies = [
 [[package]]
 name = "glutin_emscripten_sys"
 version = "0.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
+source = "git+https://github.com/freamon/glutin.git?branch=use-latest-winit#020f785d185f4d3f1e89b3c29d0536b92209a65c"
 
 [[package]]
 name = "glutin_gles2_sys"
 version = "0.1.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
+source = "git+https://github.com/freamon/glutin.git?branch=use-latest-winit#020f785d185f4d3f1e89b3c29d0536b92209a65c"
 dependencies = [
  "gl_generator 0.13.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "objc 0.2.7 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -782,7 +743,7 @@ dependencies = [
 [[package]]
 name = "glutin_glx_sys"
 version = "0.1.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
+source = "git+https://github.com/freamon/glutin.git?branch=use-latest-winit#020f785d185f4d3f1e89b3c29d0536b92209a65c"
 dependencies = [
  "gl_generator 0.13.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "x11-dl 2.18.5 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -791,7 +752,7 @@ dependencies = [
 [[package]]
 name = "glutin_wgl_sys"
 version = "0.1.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
+source = "git+https://github.com/freamon/glutin.git?branch=use-latest-winit#020f785d185f4d3f1e89b3c29d0536b92209a65c"
 dependencies = [
  "gl_generator 0.13.1 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -2194,7 +2155,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 [[package]]
 name = "winit"
 version = "0.22.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
+source = "git+https://github.com/rust-windowing/winit.git#03335cef851495e0a2843db7019516988740688b"
 dependencies = [
  "bitflags 1.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "cocoa 0.20.1 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -2367,15 +2328,11 @@ dependencies = [
 "checksum clipboard-win 2.2.0 (registry+https://github.com/rust-lang/crates.io-index)" = "e3a093d6fed558e5fe24c3dfc85a68bb68f1c824f440d3ba5aca189e2998786b"
 "checksum cloudabi 0.0.3 (registry+https://github.com/rust-lang/crates.io-index)" = "ddfc5b9aa5d4507acaf872de71051dfd0e309860e88966e1051e462a077aac4f"
 "checksum cmake 0.1.44 (registry+https://github.com/rust-lang/crates.io-index)" = "0e56268c17a6248366d66d4a47a3381369d068cce8409bb1716ed77ea32163bb"
-"checksum cocoa 0.19.1 (registry+https://github.com/rust-lang/crates.io-index)" = "f29f7768b2d1be17b96158e3285951d366b40211320fb30826a76cb7a0da6400"
 "checksum cocoa 0.20.1 (registry+https://github.com/rust-lang/crates.io-index)" = "8f7b6f3f7f4f0b3ec5c5039aaa9e8c3cef97a7a480a400fd62944841314f293d"
 "checksum constant_time_eq 0.1.5 (registry+https://github.com/rust-lang/crates.io-index)" = "245097e9a4535ee1e3e3931fcfcd55a796a44c643e8596ff6566d68f09b87bbc"
 "checksum copypasta 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)" = "cbc2322d35c17d340f7017e4c1be24c6f0d6e09423adb51d182d7a9c122f2e6c"
-"checksum core-foundation 0.6.4 (registry+https://github.com/rust-lang/crates.io-index)" = "25b9e03f145fd4f2bf705e07b900cd41fc636598fe5dc452fd0db1441c3f496d"
 "checksum core-foundation 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)" = "57d24c7a13c43e870e37c1556b74555437870a04514f7685f5b354e090567171"
-"checksum core-foundation-sys 0.6.2 (registry+https://github.com/rust-lang/crates.io-index)" = "e7ca8a5221364ef15ce201e8ed2f609fc312682a8f4e0e3d4aa5879764e0fa3b"
 "checksum core-foundation-sys 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)" = "b3a71ab494c0b5b860bdc8407ae08978052417070c2ced38573a9157ad75b8ac"
-"checksum core-graphics 0.17.3 (registry+https://github.com/rust-lang/crates.io-index)" = "56790968ab1c8a1202a102e6de05fc6e1ec87da99e4e93e9a7d13efbfc1e95a9"
 "checksum core-graphics 0.19.0 (registry+https://github.com/rust-lang/crates.io-index)" = "59e78b2e0aaf43f08e7ae0d6bc96895ef72ff0921c7d4ff4762201b2dba376dd"
 "checksum core-text 15.0.0 (registry+https://github.com/rust-lang/crates.io-index)" = "131b3fd1f8bd5db9f2b398fa4fdb6008c64afc04d447c306ac2c7e98fba2a61d"
 "checksum core-video-sys 0.1.4 (registry+https://github.com/rust-lang/crates.io-index)" = "34ecad23610ad9757664d644e369246edde1803fcb43ed72876565098a5d3828"
@@ -2412,12 +2369,12 @@ dependencies = [
 "checksum gl_generator 0.13.1 (registry+https://github.com/rust-lang/crates.io-index)" = "ca98bbde17256e02d17336a6bdb5a50f7d0ccacee502e191d3e3d0ec2f96f84a"
 "checksum gl_generator 0.14.0 (registry+https://github.com/rust-lang/crates.io-index)" = "1a95dfc23a2b4a9a2f5ab41d194f8bfda3cabec42af4e39f08c339eb2a0c124d"
 "checksum glob 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)" = "9b919933a397b79c37e33b77bb2aa3dc8eb6e165ad809e58ff75bc7db2e34574"
-"checksum glutin 0.24.0 (registry+https://github.com/rust-lang/crates.io-index)" = "611023dea5047f3e9047aecb9e361852dcfd0881129daf5d110106ca2b14f3f3"
-"checksum glutin_egl_sys 0.1.4 (registry+https://github.com/rust-lang/crates.io-index)" = "772edef3b28b8ad41e4ea202748e65eefe8e5ffd1f4535f1219793dbb20b3d4c"
-"checksum glutin_emscripten_sys 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)" = "80de4146df76e8a6c32b03007bc764ff3249dcaeb4f675d68a06caf1bac363f1"
-"checksum glutin_gles2_sys 0.1.4 (registry+https://github.com/rust-lang/crates.io-index)" = "07e853d96bebcb8e53e445225c3009758c6f5960d44f2543245f6f07b567dae0"
-"checksum glutin_glx_sys 0.1.6 (registry+https://github.com/rust-lang/crates.io-index)" = "08c243de74d6cf5ea100c788826d2fb9319de315485dd4b310811a663b3809c3"
-"checksum glutin_wgl_sys 0.1.4 (registry+https://github.com/rust-lang/crates.io-index)" = "a93dba7ee3a0feeac0f437141ff25e71ce2066bcf1a706acab1559ffff94eb6a"
+"checksum glutin 0.24.0 (git+https://github.com/freamon/glutin.git?branch=use-latest-winit)" = "<none>"
+"checksum glutin_egl_sys 0.1.4 (git+https://github.com/freamon/glutin.git?branch=use-latest-winit)" = "<none>"
+"checksum glutin_emscripten_sys 0.1.1 (git+https://github.com/freamon/glutin.git?branch=use-latest-winit)" = "<none>"
+"checksum glutin_gles2_sys 0.1.4 (git+https://github.com/freamon/glutin.git?branch=use-latest-winit)" = "<none>"
+"checksum glutin_glx_sys 0.1.6 (git+https://github.com/freamon/glutin.git?branch=use-latest-winit)" = "<none>"
+"checksum glutin_wgl_sys 0.1.4 (git+https://github.com/freamon/glutin.git?branch=use-latest-winit)" = "<none>"
 "checksum hermit-abi 0.1.13 (registry+https://github.com/rust-lang/crates.io-index)" = "91780f809e750b0a89f5544be56617ff6b1227ee485bcb06ebe10cdf89bd3b71"
 "checksum http_req 0.5.5 (registry+https://github.com/rust-lang/crates.io-index)" = "ef9a6b5b2cd80630d9c6bda175408a86908d8a9c1eb5b2857206529d88d063a3"
 "checksum humantime 1.3.0 (registry+https://github.com/rust-lang/crates.io-index)" = "df004cfca50ef23c36850aaaa59ad52cc70d0e90243c3c7737a4dd32dc7a3c4f"
@@ -2584,7 +2541,7 @@ dependencies = [
 "checksum winapi-i686-pc-windows-gnu 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)" = "ac3b87c63620426dd9b991e5ce0329eff545bccbbb34f3be09ff6fb6ab51b7b6"
 "checksum winapi-util 0.1.5 (registry+https://github.com/rust-lang/crates.io-index)" = "70ec6ce85bb158151cae5e5c87f95a8e97d2c0c4b001223f33a334e3ce5de178"
 "checksum winapi-x86_64-pc-windows-gnu 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)" = "712e227841d057c1ee1cd2fb22fa7e5a5461ae8e48fa2ca79ec42cfc1931183f"
-"checksum winit 0.22.2 (registry+https://github.com/rust-lang/crates.io-index)" = "1e4ccbf7ddb6627828eace16cacde80fc6bf4dbb3469f88487262a02cf8e7862"
+"checksum winit 0.22.2 (git+https://github.com/rust-windowing/winit.git)" = "<none>"
 "checksum winpty 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)" = "92c5a39bb2408a307dd5ab774039ec3f2c68d052970ae4dacc346101abe202b2"
 "checksum winpty-sys 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)" = "ed8a179a59760dc51d30b5e6eaf1bd6da88461f72f2616e962ddebef7e413210"
 "checksum winreg 0.6.2 (registry+https://github.com/rust-lang/crates.io-index)" = "b2986deb581c4fe11b621998a5e53361efe6b48a151178d0cd9eeffa4dc6acc9"
