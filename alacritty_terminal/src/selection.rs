@@ -1,29 +1,17 @@
-// Copyright 2016 Joe Wilm, The Alacritty Project Contributors
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 //! State management for a selection in the grid.
 //!
 //! A selection should start when the mouse is clicked, and it should be
 //! finalized when the button is released. The selection should be cleared
 //! when text is added/removed/scrolled on the screen. The selection should
 //! also be cleared if the user clicks off of the selection.
+
 use std::convert::TryFrom;
 use std::mem;
-use std::ops::Range;
+use std::ops::{Bound, Range, RangeBounds};
 
+use crate::grid::Dimensions;
 use crate::index::{Column, Line, Point, Side};
-use crate::term::{Search, Term};
+use crate::term::Term;
 
 /// A Point and side within that point.
 #[derive(Debug, Copy, Clone, PartialEq)]
@@ -106,52 +94,52 @@ impl Selection {
         }
     }
 
+    /// Update the end of the selection.
     pub fn update(&mut self, point: Point<usize>, side: Side) {
         self.region.end = Anchor::new(point, side);
     }
 
-    pub fn rotate(
+    pub fn rotate<D: Dimensions>(
         mut self,
-        num_lines: usize,
-        num_cols: usize,
-        scrolling_region: &Range<Line>,
-        offset: isize,
+        dimensions: &D,
+        range: &Range<Line>,
+        delta: isize,
     ) -> Option<Selection> {
-        // Convert scrolling region from viewport to buffer coordinates.
-        let region_start = num_lines - scrolling_region.start.0;
-        let region_end = num_lines - scrolling_region.end.0;
+        let num_lines = dimensions.screen_lines().0;
+        let num_cols = dimensions.cols().0;
+        let range_bottom = range.start.0;
+        let range_top = range.end.0;
 
         let (mut start, mut end) = (&mut self.region.start, &mut self.region.end);
-        if Self::points_need_swap(start.point, end.point) {
+        if Selection::points_need_swap(start.point, end.point) {
             mem::swap(&mut start, &mut end);
         }
 
         // Rotate start of selection.
-        if (start.point.line < region_start || region_start == num_lines)
-            && start.point.line >= region_end
+        if (start.point.line < range_top || range_top == num_lines)
+            && start.point.line >= range_bottom
         {
-            start.point.line = usize::try_from(start.point.line as isize + offset).unwrap_or(0);
+            start.point.line = usize::try_from(start.point.line as isize + delta).unwrap_or(0);
 
             // If end is within the same region, delete selection once start rotates out.
-            if start.point.line < region_end && end.point.line >= region_end {
+            if start.point.line < range_bottom && end.point.line >= range_bottom {
                 return None;
             }
 
             // Clamp selection to start of region.
-            if start.point.line >= region_start && region_start != num_lines {
+            if start.point.line >= range_top && range_top != num_lines {
                 if self.ty != SelectionType::Block {
                     start.point.col = Column(0);
                     start.side = Side::Left;
                 }
-                start.point.line = region_start - 1;
+                start.point.line = range_top - 1;
             }
         }
 
         // Rotate end of selection.
-        if (end.point.line < region_start || region_start == num_lines)
-            && end.point.line >= region_end
+        if (end.point.line < range_top || range_top == num_lines) && end.point.line >= range_bottom
         {
-            end.point.line = usize::try_from(end.point.line as isize + offset).unwrap_or(0);
+            end.point.line = usize::try_from(end.point.line as isize + delta).unwrap_or(0);
 
             // Delete selection if end has overtaken the start.
             if end.point.line > start.point.line {
@@ -159,12 +147,12 @@ impl Selection {
             }
 
             // Clamp selection to end of region.
-            if end.point.line < region_end {
+            if end.point.line < range_bottom {
                 if self.ty != SelectionType::Block {
                     end.point.col = Column(num_cols - 1);
                     end.side = Side::Right;
                 }
-                end.point.line = region_end;
+                end.point.line = range_bottom;
             }
         }
 
@@ -175,7 +163,7 @@ impl Selection {
         match self.ty {
             SelectionType::Simple => {
                 let (mut start, mut end) = (self.region.start, self.region.end);
-                if Selection::points_need_swap(start.point, end.point) {
+                if Self::points_need_swap(start.point, end.point) {
                     mem::swap(&mut start, &mut end);
                 }
 
@@ -205,6 +193,30 @@ impl Selection {
         }
     }
 
+    /// Check whether selection contains any point in a given range.
+    pub fn intersects_range<R: RangeBounds<usize>>(&self, range: R) -> bool {
+        let mut start = self.region.start.point.line;
+        let mut end = self.region.end.point.line;
+
+        if Self::points_need_swap(self.region.start.point, self.region.end.point) {
+            mem::swap(&mut start, &mut end);
+        }
+
+        let range_start = match range.start_bound() {
+            Bound::Included(&range_start) => range_start,
+            Bound::Excluded(&range_start) => range_start.saturating_add(1),
+            Bound::Unbounded => 0,
+        };
+
+        let range_end = match range.end_bound() {
+            Bound::Included(&range_end) => range_end,
+            Bound::Excluded(&range_end) => range_end.saturating_sub(1),
+            Bound::Unbounded => usize::max_value(),
+        };
+
+        range_start <= start && range_end >= end
+    }
+
     /// Expand selection sides to include all cells.
     pub fn include_all(&mut self) {
         let (start, end) = (self.region.start.point, self.region.end.point);
@@ -226,17 +238,19 @@ impl Selection {
     /// Convert selection to grid coordinates.
     pub fn to_range<T>(&self, term: &Term<T>) -> Option<SelectionRange> {
         let grid = term.grid();
-        let num_cols = grid.num_cols();
+        let num_cols = grid.cols();
 
         // Order start above the end.
-        let (mut start, mut end) = (self.region.start, self.region.end);
+        let mut start = self.region.start;
+        let mut end = self.region.end;
+
         if Self::points_need_swap(start.point, end.point) {
             mem::swap(&mut start, &mut end);
         }
 
         // Clamp to inside the grid buffer.
         let is_block = self.ty == SelectionType::Block;
-        let (start, end) = Self::grid_clamp(start, end, is_block, grid.len()).ok()?;
+        let (start, end) = Self::grid_clamp(start, end, is_block, grid.total_lines()).ok()?;
 
         match self.ty {
             SelectionType::Simple => self.range_simple(start, end, num_cols),
@@ -384,7 +398,6 @@ impl Selection {
 mod tests {
     use super::*;
 
-    use crate::clipboard::Clipboard;
     use crate::config::MockConfig;
     use crate::event::{Event, EventListener};
     use crate::index::{Column, Line, Point, Side};
@@ -395,17 +408,9 @@ mod tests {
         fn send_event(&self, _event: Event) {}
     }
 
-    fn term(width: usize, height: usize) -> Term<Mock> {
-        let size = SizeInfo {
-            width: width as f32,
-            height: height as f32,
-            cell_width: 1.0,
-            cell_height: 1.0,
-            padding_x: 0.0,
-            padding_y: 0.0,
-            dpr: 1.0,
-        };
-        Term::new(&MockConfig::default(), &size, Clipboard::new_nop(), Mock)
+    fn term(height: usize, width: usize) -> Term<Mock> {
+        let size = SizeInfo::new(width as f32, height as f32, 1.0, 1.0, 0.0, 0.0, false);
+        Term::new(&MockConfig::default(), size, Mock)
     }
 
     /// Test case of single cell selection.
@@ -419,7 +424,7 @@ mod tests {
         let mut selection = Selection::new(SelectionType::Simple, location, Side::Left);
         selection.update(location, Side::Right);
 
-        assert_eq!(selection.to_range(&term(1, 1)).unwrap(), SelectionRange {
+        assert_eq!(selection.to_range(&term(1, 2)).unwrap(), SelectionRange {
             start: location,
             end: location,
             is_block: false
@@ -437,7 +442,7 @@ mod tests {
         let mut selection = Selection::new(SelectionType::Simple, location, Side::Right);
         selection.update(location, Side::Left);
 
-        assert_eq!(selection.to_range(&term(1, 1)).unwrap(), SelectionRange {
+        assert_eq!(selection.to_range(&term(1, 2)).unwrap(), SelectionRange {
             start: location,
             end: location,
             is_block: false
@@ -455,7 +460,7 @@ mod tests {
             Selection::new(SelectionType::Simple, Point::new(0, Column(0)), Side::Right);
         selection.update(Point::new(0, Column(1)), Side::Left);
 
-        assert_eq!(selection.to_range(&term(2, 1)), None);
+        assert_eq!(selection.to_range(&term(1, 2)), None);
     }
 
     /// Test adjacent cell selection from right to left.
@@ -469,7 +474,7 @@ mod tests {
             Selection::new(SelectionType::Simple, Point::new(0, Column(1)), Side::Left);
         selection.update(Point::new(0, Column(0)), Side::Right);
 
-        assert_eq!(selection.to_range(&term(2, 1)), None);
+        assert_eq!(selection.to_range(&term(1, 2)), None);
     }
 
     /// Test selection across adjacent lines.
@@ -486,7 +491,7 @@ mod tests {
             Selection::new(SelectionType::Simple, Point::new(1, Column(1)), Side::Right);
         selection.update(Point::new(0, Column(1)), Side::Right);
 
-        assert_eq!(selection.to_range(&term(5, 2)).unwrap(), SelectionRange {
+        assert_eq!(selection.to_range(&term(2, 5)).unwrap(), SelectionRange {
             start: Point::new(1, Column(2)),
             end: Point::new(0, Column(1)),
             is_block: false,
@@ -510,7 +515,7 @@ mod tests {
         selection.update(Point::new(1, Column(1)), Side::Right);
         selection.update(Point::new(1, Column(0)), Side::Right);
 
-        assert_eq!(selection.to_range(&term(5, 2)).unwrap(), SelectionRange {
+        assert_eq!(selection.to_range(&term(2, 5)).unwrap(), SelectionRange {
             start: Point::new(1, Column(1)),
             end: Point::new(0, Column(1)),
             is_block: false,
@@ -519,14 +524,13 @@ mod tests {
 
     #[test]
     fn line_selection() {
-        let num_lines = 10;
-        let num_cols = 5;
+        let size = (Line(10), Column(5));
         let mut selection =
             Selection::new(SelectionType::Lines, Point::new(0, Column(1)), Side::Left);
         selection.update(Point::new(5, Column(1)), Side::Right);
-        selection = selection.rotate(num_lines, num_cols, &(Line(0)..Line(num_lines)), 7).unwrap();
+        selection = selection.rotate(&size, &(Line(0)..size.0), 7).unwrap();
 
-        assert_eq!(selection.to_range(&term(num_cols, num_lines)).unwrap(), SelectionRange {
+        assert_eq!(selection.to_range(&term(*size.0, *size.1)).unwrap(), SelectionRange {
             start: Point::new(9, Column(0)),
             end: Point::new(7, Column(4)),
             is_block: false,
@@ -535,14 +539,13 @@ mod tests {
 
     #[test]
     fn semantic_selection() {
-        let num_lines = 10;
-        let num_cols = 5;
+        let size = (Line(10), Column(5));
         let mut selection =
             Selection::new(SelectionType::Semantic, Point::new(0, Column(3)), Side::Left);
         selection.update(Point::new(5, Column(1)), Side::Right);
-        selection = selection.rotate(num_lines, num_cols, &(Line(0)..Line(num_lines)), 7).unwrap();
+        selection = selection.rotate(&size, &(Line(0)..size.0), 7).unwrap();
 
-        assert_eq!(selection.to_range(&term(num_cols, num_lines)).unwrap(), SelectionRange {
+        assert_eq!(selection.to_range(&term(*size.0, *size.1)).unwrap(), SelectionRange {
             start: Point::new(9, Column(0)),
             end: Point::new(7, Column(3)),
             is_block: false,
@@ -551,14 +554,13 @@ mod tests {
 
     #[test]
     fn simple_selection() {
-        let num_lines = 10;
-        let num_cols = 5;
+        let size = (Line(10), Column(5));
         let mut selection =
             Selection::new(SelectionType::Simple, Point::new(0, Column(3)), Side::Right);
         selection.update(Point::new(5, Column(1)), Side::Right);
-        selection = selection.rotate(num_lines, num_cols, &(Line(0)..Line(num_lines)), 7).unwrap();
+        selection = selection.rotate(&size, &(Line(0)..size.0), 7).unwrap();
 
-        assert_eq!(selection.to_range(&term(num_cols, num_lines)).unwrap(), SelectionRange {
+        assert_eq!(selection.to_range(&term(*size.0, *size.1)).unwrap(), SelectionRange {
             start: Point::new(9, Column(0)),
             end: Point::new(7, Column(3)),
             is_block: false,
@@ -567,14 +569,13 @@ mod tests {
 
     #[test]
     fn block_selection() {
-        let num_lines = 10;
-        let num_cols = 5;
+        let size = (Line(10), Column(5));
         let mut selection =
             Selection::new(SelectionType::Block, Point::new(0, Column(3)), Side::Right);
         selection.update(Point::new(5, Column(1)), Side::Right);
-        selection = selection.rotate(num_lines, num_cols, &(Line(0)..Line(num_lines)), 7).unwrap();
+        selection = selection.rotate(&size, &(Line(0)..size.0), 7).unwrap();
 
-        assert_eq!(selection.to_range(&term(num_cols, num_lines)).unwrap(), SelectionRange {
+        assert_eq!(selection.to_range(&term(*size.0, *size.1)).unwrap(), SelectionRange {
             start: Point::new(9, Column(2)),
             end: Point::new(7, Column(3)),
             is_block: true
@@ -611,15 +612,13 @@ mod tests {
 
     #[test]
     fn rotate_in_region_up() {
-        let num_lines = 10;
-        let num_cols = 5;
+        let size = (Line(10), Column(5));
         let mut selection =
             Selection::new(SelectionType::Simple, Point::new(2, Column(3)), Side::Right);
         selection.update(Point::new(5, Column(1)), Side::Right);
-        selection =
-            selection.rotate(num_lines, num_cols, &(Line(1)..Line(num_lines - 1)), 4).unwrap();
+        selection = selection.rotate(&size, &(Line(1)..(size.0 - 1)), 4).unwrap();
 
-        assert_eq!(selection.to_range(&term(num_cols, num_lines)).unwrap(), SelectionRange {
+        assert_eq!(selection.to_range(&term(*size.0, *size.1)).unwrap(), SelectionRange {
             start: Point::new(8, Column(0)),
             end: Point::new(6, Column(3)),
             is_block: false,
@@ -628,35 +627,48 @@ mod tests {
 
     #[test]
     fn rotate_in_region_down() {
-        let num_lines = 10;
-        let num_cols = 5;
+        let size = (Line(10), Column(5));
         let mut selection =
             Selection::new(SelectionType::Simple, Point::new(5, Column(3)), Side::Right);
         selection.update(Point::new(8, Column(1)), Side::Left);
-        selection =
-            selection.rotate(num_lines, num_cols, &(Line(1)..Line(num_lines - 1)), -5).unwrap();
+        selection = selection.rotate(&size, &(Line(1)..(size.0 - 1)), -5).unwrap();
 
-        assert_eq!(selection.to_range(&term(num_cols, num_lines)).unwrap(), SelectionRange {
+        assert_eq!(selection.to_range(&term(*size.0, *size.1)).unwrap(), SelectionRange {
             start: Point::new(3, Column(1)),
-            end: Point::new(1, Column(num_cols - 1)),
+            end: Point::new(1, size.1 - 1),
             is_block: false,
         });
     }
 
     #[test]
     fn rotate_in_region_up_block() {
-        let num_lines = 10;
-        let num_cols = 5;
+        let size = (Line(10), Column(5));
         let mut selection =
             Selection::new(SelectionType::Block, Point::new(2, Column(3)), Side::Right);
         selection.update(Point::new(5, Column(1)), Side::Right);
-        selection =
-            selection.rotate(num_lines, num_cols, &(Line(1)..Line(num_lines - 1)), 4).unwrap();
+        selection = selection.rotate(&size, &(Line(1)..(size.0 - 1)), 4).unwrap();
 
-        assert_eq!(selection.to_range(&term(num_cols, num_lines)).unwrap(), SelectionRange {
+        assert_eq!(selection.to_range(&term(*size.0, *size.1)).unwrap(), SelectionRange {
             start: Point::new(8, Column(2)),
             end: Point::new(6, Column(3)),
             is_block: true,
         });
+    }
+
+    #[test]
+    fn range_intersection() {
+        let mut selection =
+            Selection::new(SelectionType::Lines, Point::new(6, Column(1)), Side::Left);
+        selection.update(Point::new(3, Column(1)), Side::Right);
+
+        assert!(selection.intersects_range(..));
+        assert!(selection.intersects_range(2..));
+        assert!(selection.intersects_range(2..=4));
+        assert!(selection.intersects_range(2..=7));
+        assert!(selection.intersects_range(4..=5));
+        assert!(selection.intersects_range(5..8));
+
+        assert!(!selection.intersects_range(..=2));
+        assert!(!selection.intersects_range(7..=8));
     }
 }

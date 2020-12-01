@@ -6,14 +6,12 @@ use std::io::{self, Read};
 use std::path::Path;
 
 use alacritty_terminal::ansi;
-use alacritty_terminal::clipboard::Clipboard;
 use alacritty_terminal::config::MockConfig;
 use alacritty_terminal::event::{Event, EventListener};
+use alacritty_terminal::grid::{Dimensions, Grid};
 use alacritty_terminal::index::Column;
 use alacritty_terminal::term::cell::Cell;
-use alacritty_terminal::term::SizeInfo;
-use alacritty_terminal::Grid;
-use alacritty_terminal::Term;
+use alacritty_terminal::term::{SizeInfo, Term};
 
 macro_rules! ref_tests {
     ($($name:ident)*) => {
@@ -63,6 +61,12 @@ ref_tests! {
     erase_chars_reset
     scroll_up_reset
     clear_underline
+    region_scroll_down
+    wrapline_alt_toggle
+    saved_cursor
+    saved_cursor_alt
+    sgr
+    underline
 }
 
 fn read_u8<P>(path: P) -> Vec<u8>
@@ -98,7 +102,7 @@ fn ref_test(dir: &Path) {
     let mut config = MockConfig::default();
     config.scrolling.set_history(ref_config.history_size);
 
-    let mut terminal = Term::new(&config, &size, Clipboard::new_nop(), Mock);
+    let mut terminal = Term::new(&config, size, Mock);
     let mut parser = ansi::Processor::new();
 
     for byte in recording {
@@ -107,14 +111,14 @@ fn ref_test(dir: &Path) {
 
     // Truncate invisible lines from the grid.
     let mut term_grid = terminal.grid().clone();
-    term_grid.initialize_all(&Cell::default());
+    term_grid.initialize_all();
     term_grid.truncate();
 
     if grid != term_grid {
-        for i in 0..grid.len() {
-            for j in 0..grid.num_cols().0 {
-                let cell = term_grid[i][Column(j)];
-                let original_cell = grid[i][Column(j)];
+        for i in 0..grid.total_lines() {
+            for j in 0..grid.cols().0 {
+                let cell = &term_grid[i][Column(j)];
+                let original_cell = &grid[i][Column(j)];
                 if original_cell != cell {
                     println!(
                         "[{i}][{j}] {original:?} => {now:?}",

@@ -1,16 +1,3 @@
-// Copyright 2016 Joe Wilm, The Alacritty Project Contributors
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
 #![allow(clippy::enum_glob_use)]
 
 use std::fmt::{self, Debug, Display};
@@ -22,6 +9,7 @@ use serde::de::{self, MapAccess, Unexpected, Visitor};
 use serde::{Deserialize, Deserializer};
 use serde_yaml::Value as SerdeValue;
 
+use alacritty_terminal::config::Program;
 use alacritty_terminal::term::TermMode;
 use alacritty_terminal::vi_mode::ViMotion;
 
@@ -61,9 +49,9 @@ impl<T: Eq> Binding<T> {
         // the most likely item to fail so prioritizing it here allows more
         // checks to be short circuited.
         self.trigger == *input
+            && self.mods == mods
             && mode.contains(self.mode)
             && !mode.intersects(self.notmode)
-            && (self.mods == mods)
     }
 
     #[inline]
@@ -73,16 +61,20 @@ impl<T: Eq> Binding<T> {
             return false;
         }
 
-        // Completely empty modes match all modes.
-        if (self.mode.is_empty() && self.notmode.is_empty())
-            || (binding.mode.is_empty() && binding.notmode.is_empty())
-        {
-            return true;
+        let selfmode = if self.mode.is_empty() { TermMode::ANY } else { self.mode };
+        let bindingmode = if binding.mode.is_empty() { TermMode::ANY } else { binding.mode };
+
+        if !selfmode.intersects(bindingmode) {
+            return false;
         }
 
-        // Check for intersection (equality is required since empty does not intersect itself).
-        (self.mode == binding.mode || self.mode.intersects(binding.mode))
-            && (self.notmode == binding.notmode || self.notmode.intersects(binding.notmode))
+        // The bindings are never active at the same time when the required modes of one binding
+        // are part of the forbidden bindings of the other.
+        if self.mode.intersects(binding.notmode) || binding.mode.intersects(self.notmode) {
+            return false;
+        }
+
+        true
     }
 }
 
@@ -94,7 +86,7 @@ pub enum Action {
 
     /// Run given command.
     #[serde(skip)]
-    Command(String, Vec<String>),
+    Command(Program),
 
     /// Move vi mode cursor.
     #[serde(skip)]
@@ -187,6 +179,12 @@ pub enum Action {
     /// Allow receiving char input.
     ReceiveChar,
 
+    /// Start a forward buffer search.
+    SearchForward,
+
+    /// Start a backward buffer search.
+    SearchBackward,
+
     /// No action.
     None,
 }
@@ -219,6 +217,14 @@ pub enum ViAction {
     ToggleBlockSelection,
     /// Toggle semantic vi selection.
     ToggleSemanticSelection,
+    /// Jump to the beginning of the next match.
+    SearchNext,
+    /// Jump to the beginning of the previous match.
+    SearchPrevious,
+    /// Jump to the next start of a match to the left of the origin.
+    SearchStart,
+    /// Jump to the next end of a match to the right of the origin.
+    SearchEnd,
     /// Launch the URL below the vi mode cursor.
     Open,
 }
@@ -365,6 +371,7 @@ pub fn default_key_bindings() -> Vec<KeyBinding> {
         Escape,                        +TermMode::VI; Action::ClearSelection;
         I,                             +TermMode::VI; Action::ScrollToBottom;
         I,                             +TermMode::VI; Action::ToggleViMode;
+        C,      ModifiersState::CTRL,  +TermMode::VI; Action::ToggleViMode;
         Y,      ModifiersState::CTRL,  +TermMode::VI; Action::ScrollLineUp;
         E,      ModifiersState::CTRL,  +TermMode::VI; Action::ScrollLineDown;
         G,                             +TermMode::VI; Action::ScrollToTop;
@@ -375,10 +382,14 @@ pub fn default_key_bindings() -> Vec<KeyBinding> {
         D,      ModifiersState::CTRL,  +TermMode::VI; Action::ScrollHalfPageDown;
         Y,                             +TermMode::VI; Action::Copy;
         Y,                             +TermMode::VI; Action::ClearSelection;
+        Slash,                         +TermMode::VI; Action::SearchForward;
+        Slash,  ModifiersState::SHIFT, +TermMode::VI; Action::SearchBackward;
         V,                             +TermMode::VI; ViAction::ToggleNormalSelection;
         V,      ModifiersState::SHIFT, +TermMode::VI; ViAction::ToggleLineSelection;
         V,      ModifiersState::CTRL,  +TermMode::VI; ViAction::ToggleBlockSelection;
         V,      ModifiersState::ALT,   +TermMode::VI; ViAction::ToggleSemanticSelection;
+        N,                             +TermMode::VI; ViAction::SearchNext;
+        N,      ModifiersState::SHIFT, +TermMode::VI; ViAction::SearchPrevious;
         Return,                        +TermMode::VI; ViAction::Open;
         K,                             +TermMode::VI; ViMotion::Up;
         J,                             +TermMode::VI; ViMotion::Down;
@@ -480,13 +491,16 @@ fn common_keybindings() -> Vec<KeyBinding> {
         KeyBinding;
         V,        ModifiersState::CTRL | ModifiersState::SHIFT, ~TermMode::VI; Action::Paste;
         C,        ModifiersState::CTRL | ModifiersState::SHIFT; Action::Copy;
+        F,        ModifiersState::CTRL | ModifiersState::SHIFT; Action::SearchForward;
+        B,        ModifiersState::CTRL | ModifiersState::SHIFT; Action::SearchBackward;
         C,        ModifiersState::CTRL | ModifiersState::SHIFT, +TermMode::VI; Action::ClearSelection;
         Insert,   ModifiersState::SHIFT, ~TermMode::VI; Action::PasteSelection;
         Key0,     ModifiersState::CTRL;  Action::ResetFontSize;
         Equals,   ModifiersState::CTRL;  Action::IncreaseFontSize;
-        Add,      ModifiersState::CTRL;  Action::IncreaseFontSize;
-        Subtract, ModifiersState::CTRL;  Action::DecreaseFontSize;
-        Minus,    ModifiersState::CTRL;  Action::DecreaseFontSize;
+        Plus,     ModifiersState::CTRL;  Action::IncreaseFontSize;
+        NumpadAdd,      ModifiersState::CTRL;  Action::IncreaseFontSize;
+        Minus,          ModifiersState::CTRL;  Action::DecreaseFontSize;
+        NumpadSubtract, ModifiersState::CTRL;  Action::DecreaseFontSize;
     )
 }
 
@@ -511,8 +525,10 @@ pub fn platform_key_bindings() -> Vec<KeyBinding> {
         KeyBinding;
         Key0,   ModifiersState::LOGO; Action::ResetFontSize;
         Equals, ModifiersState::LOGO; Action::IncreaseFontSize;
-        Add,    ModifiersState::LOGO; Action::IncreaseFontSize;
-        Minus,  ModifiersState::LOGO; Action::DecreaseFontSize;
+        Plus,   ModifiersState::LOGO; Action::IncreaseFontSize;
+        NumpadAdd,      ModifiersState::LOGO;  Action::IncreaseFontSize;
+        Minus,          ModifiersState::LOGO;  Action::DecreaseFontSize;
+        NumpadSubtract, ModifiersState::LOGO;  Action::DecreaseFontSize;
         Insert, ModifiersState::SHIFT, ~TermMode::VI; Action::Esc("\x1b[2;2~".into());
         K, ModifiersState::LOGO, ~TermMode::VI; Action::Esc("\x0c".into());
         V, ModifiersState::LOGO, ~TermMode::VI; Action::Paste;
@@ -526,6 +542,8 @@ pub fn platform_key_bindings() -> Vec<KeyBinding> {
         M, ModifiersState::LOGO; Action::Minimize;
         Q, ModifiersState::LOGO; Action::Quit;
         W, ModifiersState::LOGO; Action::Quit;
+        F, ModifiersState::LOGO; Action::SearchForward;
+        B, ModifiersState::LOGO; Action::SearchBackward;
     )
 }
 
@@ -767,7 +785,7 @@ impl<'a> Deserialize<'a> for RawBinding {
                 let mut mode: Option<TermMode> = None;
                 let mut not_mode: Option<TermMode> = None;
                 let mut mouse: Option<MouseButton> = None;
-                let mut command: Option<CommandWrapper> = None;
+                let mut command: Option<Program> = None;
 
                 use de::Error;
 
@@ -864,7 +882,7 @@ impl<'a> Deserialize<'a> for RawBinding {
                                 return Err(<V::Error as Error>::duplicate_field("command"));
                             }
 
-                            command = Some(map.next_value::<CommandWrapper>()?);
+                            command = Some(map.next_value::<Program>()?);
                         },
                     }
                 }
@@ -886,12 +904,7 @@ impl<'a> Deserialize<'a> for RawBinding {
                     },
                     (Some(action), None, None) => action,
                     (None, Some(chars), None) => Action::Esc(chars),
-                    (None, None, Some(cmd)) => match cmd {
-                        CommandWrapper::Just(program) => Action::Command(program, vec![]),
-                        CommandWrapper::WithArgs { program, args } => {
-                            Action::Command(program, args)
-                        },
-                    },
+                    (None, None, Some(cmd)) => Action::Command(cmd),
                     _ => {
                         return Err(V::Error::custom(
                             "must specify exactly one of chars, action or command",
@@ -930,33 +943,6 @@ impl<'a> Deserialize<'a> for KeyBinding {
         let raw = RawBinding::deserialize(deserializer)?;
         raw.into_key_binding()
             .map_err(|_| D::Error::custom("expected key binding, got mouse binding"))
-    }
-}
-
-#[serde(untagged)]
-#[derive(Debug, Deserialize, Clone, PartialEq, Eq)]
-pub enum CommandWrapper {
-    Just(String),
-    WithArgs {
-        program: String,
-        #[serde(default)]
-        args: Vec<String>,
-    },
-}
-
-impl CommandWrapper {
-    pub fn program(&self) -> &str {
-        match self {
-            CommandWrapper::Just(program) => program,
-            CommandWrapper::WithArgs { program, .. } => program,
-        }
-    }
-
-    pub fn args(&self) -> &[String] {
-        match self {
-            CommandWrapper::Just(_) => &[],
-            CommandWrapper::WithArgs { args, .. } => args,
-        }
     }
 }
 
@@ -1071,6 +1057,7 @@ mod tests {
         b2.mode = TermMode::ALT_SCREEN;
 
         assert!(b1.triggers_match(&b2));
+        assert!(b2.triggers_match(&b1));
     }
 
     #[test]
@@ -1091,26 +1078,18 @@ mod tests {
         let b2 = MockBinding::default();
 
         assert!(b1.triggers_match(&b2));
+        assert!(b2.triggers_match(&b1));
     }
 
     #[test]
-    fn binding_matches_superset_mode() {
-        let mut b1 = MockBinding::default();
-        b1.mode = TermMode::APP_KEYPAD;
-        let mut b2 = MockBinding::default();
-        b2.mode = TermMode::ALT_SCREEN | TermMode::APP_KEYPAD;
-
-        assert!(b1.triggers_match(&b2));
-    }
-
-    #[test]
-    fn binding_matches_subset_mode() {
+    fn binding_matches_modes() {
         let mut b1 = MockBinding::default();
         b1.mode = TermMode::ALT_SCREEN | TermMode::APP_KEYPAD;
         let mut b2 = MockBinding::default();
         b2.mode = TermMode::APP_KEYPAD;
 
         assert!(b1.triggers_match(&b2));
+        assert!(b2.triggers_match(&b1));
     }
 
     #[test]
@@ -1121,6 +1100,7 @@ mod tests {
         b2.mode = TermMode::APP_KEYPAD | TermMode::APP_CURSOR;
 
         assert!(b1.triggers_match(&b2));
+        assert!(b2.triggers_match(&b1));
     }
 
     #[test]
@@ -1131,6 +1111,7 @@ mod tests {
         b2.notmode = TermMode::ALT_SCREEN;
 
         assert!(!b1.triggers_match(&b2));
+        assert!(!b2.triggers_match(&b1));
     }
 
     #[test]
@@ -1141,6 +1122,30 @@ mod tests {
         b2.mode = TermMode::APP_KEYPAD;
 
         assert!(!b1.triggers_match(&b2));
+        assert!(!b2.triggers_match(&b1));
+    }
+
+    #[test]
+    fn binding_matches_notmodes() {
+        let mut subset_notmodes = MockBinding::default();
+        let mut superset_notmodes = MockBinding::default();
+        subset_notmodes.notmode = TermMode::VI | TermMode::APP_CURSOR;
+        superset_notmodes.notmode = TermMode::APP_CURSOR;
+
+        assert!(subset_notmodes.triggers_match(&superset_notmodes));
+        assert!(superset_notmodes.triggers_match(&subset_notmodes));
+    }
+
+    #[test]
+    fn binding_matches_mode_notmode() {
+        let mut b1 = MockBinding::default();
+        let mut b2 = MockBinding::default();
+        b1.mode = TermMode::VI;
+        b1.notmode = TermMode::APP_CURSOR;
+        b2.notmode = TermMode::APP_CURSOR;
+
+        assert!(b1.triggers_match(&b2));
+        assert!(b2.triggers_match(&b1));
     }
 
     #[test]

@@ -1,17 +1,3 @@
-// Copyright 2016 Joe Wilm, The Alacritty Project Contributors
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 use std::i16;
 use std::io::Error;
 use std::mem;
@@ -19,7 +5,6 @@ use std::os::windows::io::IntoRawHandle;
 use std::ptr;
 
 use mio_anonymous_pipes::{EventedAnonRead, EventedAnonWrite};
-use miow;
 use winapi::shared::basetsd::{PSIZE_T, SIZE_T};
 use winapi::shared::minwindef::{BYTE, DWORD};
 use winapi::shared::ntdef::{HANDLE, HRESULT, LPWSTR};
@@ -139,8 +124,7 @@ pub fn new<C>(config: &Config<C>, size: &SizeInfo, _window_id: Option<usize>) ->
 
     let mut startup_info_ex: STARTUPINFOEXW = Default::default();
 
-    let title = win32_string(&config.window.title);
-    startup_info_ex.StartupInfo.lpTitle = title.as_ptr() as LPWSTR;
+    startup_info_ex.StartupInfo.lpTitle = std::ptr::null_mut() as LPWSTR;
 
     startup_info_ex.StartupInfo.cb = mem::size_of::<STARTUPINFOEXW>() as u32;
 
@@ -231,15 +215,7 @@ pub fn new<C>(config: &Config<C>, size: &SizeInfo, _window_id: Option<usize>) ->
     let child_watcher = ChildExitWatcher::new(proc_info.hProcess).unwrap();
     let conpty = Conpty { handle: pty_handle, api };
 
-    Some(Pty {
-        backend: super::PtyBackend::Conpty(conpty),
-        conout: super::EventedReadablePipe::Anonymous(conout),
-        conin: super::EventedWritablePipe::Anonymous(conin),
-        read_token: 0.into(),
-        write_token: 0.into(),
-        child_event_token: 0.into(),
-        child_watcher,
-    })
+    Some(Pty::new(conpty, conout, conin, child_watcher))
 }
 
 // Panic with the last os error as message.
@@ -257,12 +233,12 @@ impl OnResize for Conpty {
 }
 
 /// Helper to build a COORD from a SizeInfo, returning None in overflow cases.
-fn coord_from_sizeinfo(sizeinfo: &SizeInfo) -> Option<COORD> {
-    let cols = sizeinfo.cols().0;
-    let lines = sizeinfo.lines().0;
+fn coord_from_sizeinfo(size: &SizeInfo) -> Option<COORD> {
+    let cols = size.cols().0;
+    let lines = size.screen_lines().0;
 
     if cols <= i16::MAX as usize && lines <= i16::MAX as usize {
-        Some(COORD { X: sizeinfo.cols().0 as i16, Y: sizeinfo.lines().0 as i16 })
+        Some(COORD { X: cols as i16, Y: lines as i16 })
     } else {
         None
     }
